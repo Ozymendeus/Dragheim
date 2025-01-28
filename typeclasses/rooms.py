@@ -22,3 +22,44 @@ class Room(ObjectParent, DefaultRoom):
     """
 
     pass
+
+class GridRoom(DefaultRoom):
+    """
+    A room with a grid-based map for visual navigation.
+    """
+    def at_object_creation(self):
+        super().at_object_creation()
+        self.db.grid = {}
+
+    def set_grid_cell(self, x, y, content):
+        """
+        Set the content of a specific grid cell.
+        """
+        if (x, y) not in self.db.grid:
+            self.db.grid[(x, y)] = content
+        else:
+            self.db.grid[(x, y)] = content
+
+    def get_grid_cell(self, x, y):
+        """
+        Get the content of a specific grid cell.
+        """
+        return self.db.grid.get((x, y), None)
+
+    def render_grid(self):
+        """
+        Create a text-based representation of the grid.
+        """
+        if not self.db.grid:
+            return "The grid is empty."
+        # Determine grid size
+        max_x = max(k[0] for k in self.db.grid.keys())
+        max_y = max(k[1] for k in self.db.grid.keys())
+        output = ""
+        for y in range(max_y, -1, -1):
+            row = ""
+            for x in range(max_x + 1):
+                cell = self.db.grid.get((x, y), " ")  # Default to empty cell
+                row += f"[{cell}]"
+            output += f"{row}\n"
+        return output

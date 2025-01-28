@@ -185,3 +185,58 @@ class Command(BaseCommand):
 #                 self.character = self.caller.get_puppet(self.session)
 #             else:
 #                 self.character = None
+
+class CmdStep(Command):
+    """
+    Step inside a grid-based room.
+
+    Usage:
+        step <direction>
+    """
+    key = "step"
+    locks = "cmd:all()"
+
+    def parse(self):
+        self.direction = self.args.strip().lower()
+
+    def func(self):
+        # Mapping of directions to grid offsets
+        directions = {
+            "north": (0, 1),
+            "south": (0, -1),
+            "east": (1, 0),
+            "west": (-1, 0),
+        }
+
+        # Ensure a valid direction is provided
+        if self.direction not in directions:
+            self.caller.msg("Invalid direction! Use north, south, east, or west.")
+            return
+
+        # Check if the current room is a GridRoom
+        location = self.caller.location
+        if not location or not location.is_typeclass("typeclasses.rooms.GridRoom", exact=False):
+            self.caller.msg("You cannot use 'step' here.")
+            return
+
+        # Calculate the new position
+        dx, dy = directions[self.direction]
+        current_pos = self.caller.db.position or (0, 0)
+        new_pos = (current_pos[0] + dx, current_pos[1] + dy)
+
+        # Validate the new position
+        cell_content = location.get_grid_cell(*new_pos)
+        if cell_content == "W":
+            self.caller.msg("You bump into a wall.")
+            return
+        elif cell_content is None:
+            self.caller.msg("You cannot go that way.")
+            return
+
+        # Update the player's position
+        self.caller.db.position = new_pos
+        self.caller.msg(f"You step {self.direction} to position {new_pos}.")
+
+        # Optional: Describe the new grid cell
+        if cell_content:
+            self.caller.msg(f"You see: {cell_content}.")
