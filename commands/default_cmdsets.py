@@ -16,6 +16,9 @@ own cmdsets by inheriting from them or directly from `evennia.CmdSet`.
 
 from evennia import default_cmds
 from commands.command import CmdStep  # Import the new command
+from commands.command import CmdResetGrid
+from commands.command import CmdBuildShape
+from commands.command import CmdAddDoor
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -103,3 +106,6 @@ class CharacterCmdSet(default_cmds.CharacterCmdSet):
     def at_cmdset_creation(self):
         super().at_cmdset_creation()
         self.add(CmdStep())  # Add the step command
+        self.add(CmdResetGrid()) #Add reset gridroom command
+        self.add(CmdBuildShape()) #add buildshape command
+        self.add(CmdAddDoor()) #add add door command

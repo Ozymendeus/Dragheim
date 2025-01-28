@@ -240,3 +240,170 @@ class CmdStep(Command):
         # Optional: Describe the new grid cell
         if cell_content:
             self.caller.msg(f"You see: {cell_content}.")
+            
+class CmdResetGrid(Command):
+    """
+    Reset the grid size of the current room.
+
+    Usage:
+        @resetgrid <width> <height>
+
+    Example:
+        @resetgrid 10 8
+    """
+    key = "@resetgrid"
+    locks = "cmd:perm(Builders)"  # Restrict to builders or higher
+    help_category = "Building"
+
+    def parse(self):
+        try:
+            # Parse arguments as integers for width and height
+            self.width, self.height = map(int, self.args.split())
+        except ValueError:
+            # If invalid arguments, set width and height to None
+            self.width = self.height = None
+
+    def func(self):
+        # Ensure width and height are valid
+        if not self.width or not self.height:
+            self.msg("Usage: @resetgrid <width> <height>")
+            return
+
+        # Get the caller's current location
+        location = self.caller.location
+
+        # Verify the location is a GridRoom
+        if not location:
+            self.msg("You are not in a valid room.")
+            return
+
+        # Directly compare the typeclass path for reliability
+        if location.typeclass_path != "typeclasses.rooms.GridRoom":
+            self.msg("You must be in a GridRoom to use this command.")
+            self.msg(f"Current room typeclass: {location.typeclass_path}")
+            return
+
+        # Debug output for confirmation (can be removed later)
+        self.msg(f"Resetting grid in room: {location.key} (typeclass: {location.typeclass_path})")
+
+        # Reset the grid with the specified dimensions
+        result = location.reset_grid(self.width, self.height)
+
+        # Display the result and render the new grid
+        self.msg(result)
+        self.msg(location.render_grid())
+
+class CmdBuildShape(Command):
+    """
+    Generate a shaped grid layout for a GridRoom.
+
+    Usage:
+        @buildshape <shape> [parameters]
+
+    Shapes:
+        circle <radius>
+        lshape <width> <height> <leg_length>
+        custom <row1>,<row2>,<row3>,...
+
+    Examples:
+        @buildshape circle 5
+        @buildshape lshape 5 4 2
+        @buildshape custom #####,#...#,##..#,#####
+    """
+    key = "@buildshape"
+    locks = "cmd:perm(Builders)"  # Restrict to builders
+    help_category = "Building"
+
+    def parse(self):
+        """
+        Parse the command arguments into shape and parameters.
+        """
+        if not self.args.strip():
+            self.shape = None
+            self.params = ""
+            return
+
+        args = self.args.strip().split(" ", 1)  # Split the input into shape and params
+        self.shape = args[0].lower()  # The first part is the shape
+        self.params = args[1] if len(args) > 1 else ""  # Everything after the first space
+
+    def func(self):
+        location = self.caller.location
+
+        if not location or not location.is_typeclass("typeclasses.rooms.GridRoom", exact=False):
+            self.msg("You must be in a GridRoom to use this command.")
+            return
+        
+        # Debug the parsed input
+        self.msg(f"Shape: {self.shape}, Params: {self.params}")
+
+        # Handle shapes
+        if self.shape == "circle":
+            try:
+                radius = int(self.params)
+                location.build_circle(radius)
+            except ValueError:
+                self.msg("Usage: @buildshape circle <radius>")
+                return
+
+        elif self.shape == "lshape":
+            try:
+                width, height, leg_length = map(int, self.params.split())
+                location.build_l_shape(width, height, leg_length)
+            except ValueError:
+                self.msg("Usage: @buildshape lshape <width> <height> <leg_length>")
+                return
+
+        elif self.shape == "custom":
+            floorplan = self.params.split(",")
+            location.build_custom_floorplan(floorplan)
+
+        else:
+            self.msg("Unknown shape. Available shapes: circle, lshape, custom.")
+            return
+
+        # Display the new layout
+        self.msg(f"Built a {self.shape} layout in {location.key}.")
+        self.msg(location.render_grid())
+
+class CmdAddDoor(Command):
+    """
+    Add a door to the grid and link it to a room exit.
+
+    Usage:
+        @adddoor <direction> <grid_x> <grid_y> = <destination>
+
+    Example:
+        @adddoor north 3 0 = Room(#5)
+    """
+    key = "@adddoor"
+    locks = "cmd:perm(Builders)"  # Restrict to builders
+    help_category = "Building"
+
+    def parse(self):
+        try:
+            args, destination = self.args.split("=", 1)
+            direction, grid_x, grid_y = args.split()
+            self.direction = direction.strip().lower()
+            self.grid_position = (int(grid_x), int(grid_y))
+            self.destination = destination.strip()
+        except ValueError:
+            self.msg("Usage: @adddoor <direction> <grid_x> <grid_y> = <destination>")
+            self.direction = None
+
+    def func(self):
+        if not self.direction:
+            return
+
+        # Verify the current room is a GridRoom
+        location = self.caller.location
+        if not location or not location.is_typeclass("typeclasses.rooms.GridRoom", exact=False):
+            self.msg("You must be in a GridRoom to use this command.")
+            return
+
+        # Add the door
+        try:
+            location.add_door(self.direction, self.grid_position, self.destination)
+            self.msg(f"Added door {self.direction} at {self.grid_position}, linking to {self.destination}.")
+        except ValueError as e:
+            self.msg(str(e))
