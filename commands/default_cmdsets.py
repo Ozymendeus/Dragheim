@@ -15,6 +15,7 @@ own cmdsets by inheriting from them or directly from `evennia.CmdSet`.
 """
 
 from evennia import default_cmds
+from commands.command import CmdStep  # Import the new command
 
 
 class CharacterCmdSet(default_cmds.CharacterCmdSet):
@@ -94,3 +95,11 @@ class SessionCmdSet(default_cmds.SessionCmdSet):
         #
         # any commands you add below will overload the default ones.
         #
+
+class CharacterCmdSet(default_cmds.CharacterCmdSet):
+    """
+    The default command set for in-game characters.
+    """
+    def at_cmdset_creation(self):
+        super().at_cmdset_creation()
+        self.add(CmdStep())  # Add the step command
